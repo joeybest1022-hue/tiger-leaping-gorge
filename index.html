@@ -177,21 +177,47 @@
 
     // ---- 地图初始化 ----
     let map;
+    const mapBaseStyle = {
+      version: 8,
+      sources: {},
+      layers: [{
+        id: 'background',
+        type: 'background',
+        paint: { 'background-color': '#e8f0e6' },
+      }],
+    };
+    const baseTileSources = {
+      amap: {
+        type: 'raster',
+        tiles: [
+          'https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
+          'https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
+          'https://webrd03.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
+          'https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
+        ],
+        tileSize: 256,
+        attribution: '&copy; 高德地图',
+      },
+      carto: {
+        type: 'raster',
+        tiles: [
+          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+          'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+          'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+        ],
+        tileSize: 256,
+        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      },
+    };
     const rasterMapStyle = {
       version: 8,
       sources: {
-        carto: {
-          type: 'raster',
-          tiles: [
-            'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-            'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-            'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-          ],
-          tileSize: 256,
-          attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-        },
+        amap: baseTileSources.amap,
       },
-      layers: [{ id: 'carto', type: 'raster', source: 'carto' }],
+      layers: [
+        { id: 'background', type: 'background', paint: { 'background-color': '#e8f0e6' } },
+        { id: 'amap', type: 'raster', source: 'amap' },
+      ],
     };
 
     // ---- 数据定义 ----
@@ -229,8 +255,12 @@
       [100.150, 27.400], [99.950, 27.600], [99.708, 27.825],
     ];
 
-    function drawRouteAndMarkers() {
+    function hideMapStatus() {
       mapStatus.remove();
+    }
+
+    function drawRouteAndMarkers() {
+      hideMapStatus();
       // 画路线
       [
         { coords: routeDay1, color: dayColors[1], id: 'route-day1' },
@@ -269,7 +299,14 @@
     }
 
     function showMapError() {
-      mapStatus.textContent = '地图资源加载失败，请刷新或换个网络再试。';
+      mapStatus.textContent = '底图暂时加载较慢，路线和标记仍可使用。';
+      setTimeout(hideMapStatus, 1800);
+    }
+
+    function addFallbackBaseLayer() {
+      if (!map || map.getSource('carto')) return;
+      map.addSource('carto', baseTileSources.carto);
+      map.addLayer({ id: 'carto', type: 'raster', source: 'carto' }, 'route-day1');
     }
 
     function initMap() {
@@ -280,7 +317,7 @@
 
       map = new maplibregl.Map({
         container: 'map',
-        style: rasterMapStyle,
+        style: new URLSearchParams(location.search).has('plain') ? mapBaseStyle : rasterMapStyle,
         center: [100.10, 27.22],
         zoom: 13,
         maxBounds: [[99.90, 27.10], [100.35, 27.40]],
@@ -291,14 +328,25 @@
 
       let drewContent = false;
       const onLoad = () => {
+        if (drewContent) return;
         drewContent = true;
         drawRouteAndMarkers();
       };
 
       map.once('load', onLoad);
+      map.on('error', () => {
+        if (drewContent) addFallbackBaseLayer();
+      });
       setTimeout(() => {
-        if (!drewContent) showMapError();
-      }, 7000);
+        if (drewContent) return;
+        mapStatus.textContent = '底图较慢，正在先显示路线...';
+        map.setStyle(mapBaseStyle);
+        map.once('style.load', onLoad);
+        setTimeout(() => {
+          if (!drewContent && map.isStyleLoaded()) onLoad();
+          if (!drewContent) showMapError();
+        }, 1000);
+      }, 2500);
     }
 
     initMap();
