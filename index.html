@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>虎跳峡三天徒步方案</title>
-  <script src="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.js"></script>
-  <link href="https://unpkg.com/maplibre-gl@4/dist/maplibre-gl.css" rel="stylesheet">
+  <link href="assets/maplibre/maplibre-gl.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
@@ -61,7 +60,17 @@
     .share-box a { color: #7ec8e3; word-break: break-all; }
 
     /* ---- 地图 ---- */
-    #map { flex: 1; }
+    #map { flex: 1; position: relative; }
+    .map-status {
+      position: absolute; left: 50%; top: 50%; z-index: 2;
+      transform: translate(-50%, -50%);
+      background: rgba(26, 26, 46, 0.9); color: #fff;
+      border: 1px solid rgba(255, 209, 102, 0.55);
+      border-radius: 8px; padding: 12px 14px;
+      font-size: 13px; line-height: 1.6; text-align: center;
+      max-width: min(320px, calc(100% - 32px));
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    }
 
     /* 自定义 popup */
     .maplibregl-popup-content {
@@ -76,6 +85,7 @@
     @media (max-width: 768px) {
       #container { flex-direction: column; }
       #sidebar { width: 100%; min-width: unset; max-height: 45vh; }
+      #map { min-height: 55vh; }
     }
   </style>
 </head>
@@ -158,18 +168,31 @@
     <div id="map"></div>
   </div>
 
+  <script src="assets/maplibre/maplibre-gl.js"></script>
   <script>
-    // ---- 地图初始化 ----
-    const map = new maplibregl.Map({
-      container: 'map',
-      style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: [100.10, 27.22],
-      zoom: 13,
-      maxBounds: [[99.90, 27.10], [100.35, 27.40]],
-    });
+    const mapStatus = document.createElement('div');
+    mapStatus.className = 'map-status';
+    mapStatus.textContent = '地图加载中...';
+    document.getElementById('map').appendChild(mapStatus);
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
-    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+    // ---- 地图初始化 ----
+    let map;
+    const rasterMapStyle = {
+      version: 8,
+      sources: {
+        carto: {
+          type: 'raster',
+          tiles: [
+            'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+            'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+          ],
+          tileSize: 256,
+          attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+        },
+      },
+      layers: [{ id: 'carto', type: 'raster', source: 'carto' }],
+    };
 
     // ---- 数据定义 ----
     const dayColors = { 1: '#e63946', 2: '#457b9d', 3: '#2a9d8f' };
@@ -206,7 +229,8 @@
       [100.150, 27.400], [99.950, 27.600], [99.708, 27.825],
     ];
 
-    map.on('load', () => {
+    function drawRouteAndMarkers() {
+      mapStatus.remove();
       // 画路线
       [
         { coords: routeDay1, color: dayColors[1], id: 'route-day1' },
@@ -242,7 +266,42 @@
             .addTo(map);
         });
       });
-    });
+    }
+
+    function showMapError() {
+      mapStatus.textContent = '地图资源加载失败，请刷新或换个网络再试。';
+    }
+
+    function initMap() {
+      if (!window.maplibregl) {
+        showMapError();
+        return;
+      }
+
+      map = new maplibregl.Map({
+        container: 'map',
+        style: rasterMapStyle,
+        center: [100.10, 27.22],
+        zoom: 13,
+        maxBounds: [[99.90, 27.10], [100.35, 27.40]],
+      });
+
+      map.addControl(new maplibregl.NavigationControl(), 'top-right');
+      map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+
+      let drewContent = false;
+      const onLoad = () => {
+        drewContent = true;
+        drawRouteAndMarkers();
+      };
+
+      map.once('load', onLoad);
+      setTimeout(() => {
+        if (!drewContent) showMapError();
+      }, 7000);
+    }
+
+    initMap();
 
     // ---- 按天飞行 ----
     const dayFlyBounds = {
@@ -251,6 +310,7 @@
       3: { center: [100.14, 27.30], zoom: 11 },
     };
     window.flyToDay = function(day) {
+      if (!map) return;
       const t = dayFlyBounds[day];
       map.flyTo({ center: t.center, zoom: t.zoom, duration: 1800 });
       // 高亮对应卡片
