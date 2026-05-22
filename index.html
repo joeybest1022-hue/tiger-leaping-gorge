@@ -6,17 +6,16 @@
   <title>虎跳峡三天徒步方案</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: #101522; }
+    #container { display: flex; height: 100vh; overflow: hidden; }
 
-    #container { display: flex; height: 100vh; }
-
-    /* ---- 侧边栏 ---- */
     #sidebar {
       width: 420px; min-width: 420px;
       background: #1a1a2e; color: #e0e0e0;
       overflow-y: auto;
       padding: 24px 20px;
       display: flex; flex-direction: column; gap: 20px;
+      z-index: 5;
     }
     #sidebar h1 {
       font-size: 22px; color: #ffd166;
@@ -34,93 +33,144 @@
     .day-card.day1 { border-color: #e63946; }
     .day-card.day2 { border-color: #457b9d; }
     .day-card.day3 { border-color: #2a9d8f; }
-
+    .day-card.active { outline: 1px solid rgba(255,255,255,.26); box-shadow: 0 0 0 3px rgba(255,255,255,.06); }
     .day-card h3 { font-size: 16px; margin-bottom: 6px; }
     .day-card .stats { font-size: 12px; color: #aaa; margin-bottom: 10px; }
     .day-card ul { list-style: none; font-size: 13px; line-height: 1.8; }
     .day-card ul li::before { content: '▸ '; margin-right: 4px; }
-
     .badge {
       display: inline-block; padding: 2px 8px; border-radius: 10px;
       font-size: 11px; font-weight: bold; margin-right: 4px;
     }
-    .badge-red    { background: #e63946; color: #fff; }
-    .badge-blue   { background: #457b9d; color: #fff; }
-    .badge-green  { background: #2a9d8f; color: #fff; }
-    .badge-yellow { background: #ffd166; color: #1a1a2e; }
-
+    .badge-red { background: #e63946; color: #fff; }
+    .badge-blue { background: #457b9d; color: #fff; }
+    .badge-green { background: #2a9d8f; color: #fff; }
     .tips { background: #0f3460; border-radius: 8px; padding: 14px; font-size: 13px; line-height: 1.7; }
     .tips strong { color: #ffd166; }
-
     .share-box {
       background: #0a0a1a; border-radius: 8px; padding: 12px 14px; font-size: 12px;
       border: 1px dashed #444;
     }
-    .share-box a { color: #7ec8e3; word-break: break-all; }
 
-    /* ---- 本地 SVG 行程地图 ---- */
     #map {
-      flex: 1; position: relative; overflow: hidden;
-      background: #e8efe5;
+      flex: 1; min-width: 0; position: relative; overflow: hidden;
+      background: radial-gradient(circle at 44% 28%, #edf4df 0%, #d8e6ce 36%, #8fb49f 100%);
     }
-    .route-map {
-      width: 100%; height: 100%; display: block;
-      background: linear-gradient(135deg, #dfead9 0%, #f3efe0 52%, #d7e5d6 100%);
+    #terrainCanvas {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      display: block; touch-action: none;
     }
-    .map-label { fill: #293241; font-size: 13px; font-weight: 700; paint-order: stroke; stroke: rgba(255,255,255,.9); stroke-width: 4px; stroke-linejoin: round; }
-    .map-small { fill: #59636f; font-size: 11px; font-weight: 600; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 3px; }
-    .day-route { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 7; filter: drop-shadow(0 2px 2px rgba(0,0,0,.22)); }
-    .day-route.day1 { stroke: #e63946; }
-    .day-route.day2 { stroke: #457b9d; }
-    .day-route.day3 { stroke: #2a9d8f; stroke-dasharray: 12 12; }
-    .marker { cursor: pointer; outline: none; }
-    .marker-pin { stroke: #fff; stroke-width: 3; filter: drop-shadow(0 3px 5px rgba(0,0,0,.28)); transition: transform .18s ease; }
-    .marker text { fill: #fff; font-size: 13px; font-weight: 800; pointer-events: none; }
-    .marker:hover .marker-pin,
-    .marker.active .marker-pin { transform: translateY(-4px); }
-    .map-note {
-      position: absolute; right: 18px; bottom: 16px;
-      background: rgba(255,255,255,.88); color: #3b4652;
+    .map-shade {
+      position: absolute; inset: 0; pointer-events: none;
+      background:
+        linear-gradient(90deg, rgba(15,21,33,.1), rgba(15,21,33,0) 32%),
+        radial-gradient(circle at 60% 42%, rgba(255,255,255,.2), transparent 36%),
+        linear-gradient(0deg, rgba(0,0,0,.18), transparent 28%, rgba(255,255,255,.08));
+    }
+    .map-title {
+      position: absolute; left: 24px; top: 22px; z-index: 3;
+      color: #1f2a34; text-shadow: 0 1px 0 rgba(255,255,255,.75);
+    }
+    .map-title h2 { font-size: 20px; margin-bottom: 4px; }
+    .map-title p { font-size: 12px; font-weight: 650; color: #54636b; }
+    .map-panel {
+      position: absolute; right: 18px; top: 18px; z-index: 3;
+      width: 250px; max-width: calc(100% - 36px);
+      background: rgba(16, 21, 34, .82); color: #f4f7f4;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 8px; padding: 12px;
+      box-shadow: 0 18px 42px rgba(0,0,0,.28);
+      backdrop-filter: blur(10px);
+    }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .metric {
+      background: rgba(255,255,255,.08); border-radius: 7px;
+      padding: 8px; min-height: 54px;
+    }
+    .metric b { display: block; color: #ffd166; font-size: 15px; margin-bottom: 2px; }
+    .metric span { display: block; color: #cbd5df; font-size: 11px; line-height: 1.35; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: 12px; color: #dce6ef; }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-line { width: 22px; height: 4px; border-radius: 999px; display: inline-block; }
+    .legend-day1 { background: #e63946; }
+    .legend-day2 { background: #457b9d; }
+    .legend-day3 { background: #2a9d8f; }
+    .map-help {
+      position: absolute; left: 22px; bottom: 16px; z-index: 3;
+      background: rgba(255,255,255,.88); color: #34424a;
       border: 1px solid rgba(26,26,46,.12);
       border-radius: 8px; padding: 8px 10px;
       font-size: 12px; line-height: 1.45;
       box-shadow: 0 8px 22px rgba(0,0,0,.12);
     }
+    .map-marker {
+      position: absolute; z-index: 4; width: 34px; height: 44px;
+      transform: translate(-50%, -100%);
+      border: 0; background: transparent; cursor: pointer;
+      color: #fff; font: 800 13px/1 system-ui, sans-serif;
+      filter: drop-shadow(0 5px 7px rgba(0,0,0,.32));
+      transition: transform .18s ease, opacity .18s ease;
+    }
+    .map-marker::before {
+      content: ''; position: absolute; left: 3px; top: 0;
+      width: 28px; height: 34px; border-radius: 16px 16px 16px 4px;
+      transform: rotate(-45deg);
+      background: var(--pin);
+      border: 3px solid #fff;
+    }
+    .map-marker span {
+      position: absolute; left: 0; top: 5px; width: 34px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .map-marker:hover,
+    .map-marker.active { transform: translate(-50%, calc(-100% - 7px)); }
+    .map-marker.dimmed { opacity: .42; }
     .map-popup {
-      position: absolute; z-index: 3; min-width: 220px; max-width: 290px;
-      transform: translate(-50%, calc(-100% - 22px));
+      position: absolute; z-index: 5; min-width: 230px; max-width: 310px;
+      transform: translate(-50%, calc(-100% - 48px));
       background: #1a1a2e; color: #eee; border: 1px solid #333;
       border-radius: 8px; padding: 14px 16px;
-      font-size: 13px; line-height: 1.6;
-      box-shadow: 0 16px 40px rgba(0,0,0,.28);
+      font-size: 13px; line-height: 1.55;
+      box-shadow: 0 16px 40px rgba(0,0,0,.32);
     }
     .map-popup::after {
       content: ''; position: absolute; left: 50%; bottom: -9px;
       width: 16px; height: 16px; transform: translateX(-50%) rotate(45deg);
       background: #1a1a2e; border-right: 1px solid #333; border-bottom: 1px solid #333;
     }
-    .map-popup-title { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
-    .map-popup-day { font-size: 11px; color: #aaa; margin-bottom: 5px; }
+    .popup-title { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
+    .popup-day { font-size: 11px; color: #aaa; margin-bottom: 5px; }
+    .popup-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .popup-tags span {
+      background: rgba(255,255,255,.1); border-radius: 999px;
+      padding: 2px 7px; font-size: 11px; color: #dbe7ef;
+    }
+    #fallbackMap {
+      position: absolute; inset: 0; display: none; width: 100%; height: 100%;
+      background: linear-gradient(135deg, #dfead9, #f3efe0 52%, #d7e5d6);
+    }
+    #map.fallback #terrainCanvas,
+    #map.fallback .map-shade { display: none; }
+    #map.fallback #fallbackMap { display: block; }
 
-    @media (max-width: 768px) {
-      #container { flex-direction: column; }
-      #sidebar { width: 100%; min-width: unset; max-height: 45vh; }
-      #map { min-height: 55vh; }
-      .map-note { left: 12px; right: 12px; bottom: 12px; }
+    @media (max-width: 900px) {
+      #container { flex-direction: column; overflow: auto; }
+      #sidebar { width: 100%; min-width: unset; max-height: none; }
+      #map { min-height: 620px; flex: none; }
+      .map-panel { left: 12px; right: 12px; top: 12px; width: auto; }
+      .map-title { top: 160px; left: 18px; }
+      .map-help { left: 12px; right: 12px; bottom: 12px; }
     }
   </style>
 </head>
 <body>
   <div id="container">
-
-    <!-- ===== 侧边栏 ===== -->
     <div id="sidebar">
       <div>
         <h1>🐅 虎跳峡 · 三天高路徒步</h1>
         <h2>云南 · 丽江 ↔ 香格里拉</h2>
       </div>
 
-      <!-- Day 1 -->
       <div class="day-card day1" onclick="flyToDay(1)">
         <h3>📅 Day 1 <span class="badge badge-red">约 16km</span></h3>
         <div class="stats">⏱ 6–7 小时 &nbsp;|&nbsp; 📈 累计爬升 ~800m</div>
@@ -134,7 +184,6 @@
         </ul>
       </div>
 
-      <!-- Day 2 -->
       <div class="day-card day2" onclick="flyToDay(2)">
         <h3>📅 Day 2 <span class="badge badge-blue">约 10km</span></h3>
         <div class="stats">⏱ 4–5 小时 &nbsp;|&nbsp; 📉 主要为下坡</div>
@@ -148,7 +197,6 @@
         </ul>
       </div>
 
-      <!-- Day 3 -->
       <div class="day-card day3" onclick="flyToDay(3)">
         <h3>📅 Day 3 <span class="badge badge-green">轻松收尾</span></h3>
         <div class="stats">⏱ 2–3 小时 &nbsp;|&nbsp; 🚗 返程</div>
@@ -162,7 +210,6 @@
         </ul>
       </div>
 
-      <!-- 实用贴士 -->
       <div class="tips">
         <strong>🎒 装备提醒</strong><br>
         防滑徒步鞋、登山杖（28 道拐必备）、冲锋衣（峡谷风大）、2L+ 饮水、高热量零食。<br><br>
@@ -176,136 +223,306 @@
         4–6 月（春暖花开）、9–11 月（秋高气爽）。避开 7–8 月雨季落石。
       </div>
 
-      <!-- 分享 -->
       <div class="share-box">
         <strong>🔗 分享此方案</strong><br>
-        将此 HTML 文件部署到 GitHub Pages 即可生成公开链接。<br>
-        或复制文件内容到 <a href="https://codepen.io" target="_blank">CodePen</a> /
-        <a href="https://glitch.com" target="_blank">Glitch</a> 在线托管。
+        右侧为本地 3D 行程地图，Three.js 已随页面托管，不依赖在线地图瓦片。
       </div>
     </div>
 
-    <!-- ===== 本地 SVG 行程地图 ===== -->
     <div id="map">
-      <svg class="route-map" viewBox="0 0 900 720" role="img" aria-labelledby="mapTitle mapDesc" preserveAspectRatio="xMidYMid slice">
-        <title id="mapTitle">虎跳峡三天高路徒步路线示意图</title>
-        <desc id="mapDesc">从丽江古城，经桥头镇、纳西雅阁、28 道拐、茶马客栈、Halfway、中峡客栈、中虎跳、核桃园、上虎跳观景台，到香格里拉。</desc>
-        <defs>
-          <linearGradient id="ridge" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#b7cfae"/>
-            <stop offset="55%" stop-color="#e7dcc2"/>
-            <stop offset="100%" stop-color="#9ebd9d"/>
-          </linearGradient>
-          <linearGradient id="river" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#8cc7dc"/>
-            <stop offset="100%" stop-color="#327f9d"/>
-          </linearGradient>
-        </defs>
-
+      <canvas id="terrainCanvas" aria-label="虎跳峡 3D 徒步地图"></canvas>
+      <svg id="fallbackMap" viewBox="0 0 900 720" role="img" aria-label="虎跳峡离线示意地图" preserveAspectRatio="xMidYMid slice">
         <rect width="900" height="720" fill="#e8efe5"/>
-        <path d="M0,120 C160,62 255,140 390,95 C500,58 650,36 900,84 L900,0 L0,0 Z" fill="#dcead4"/>
-        <path d="M0,710 C120,590 180,560 300,492 C420,424 470,304 610,230 C720,172 770,112 900,70 L900,720 Z" fill="url(#ridge)" opacity=".9"/>
-        <path d="M0,445 C145,365 260,386 382,318 C500,253 552,156 695,105 C770,78 829,67 900,46 L900,720 L0,720 Z" fill="#d3dfc7" opacity=".68"/>
-        <path d="M705,-30 C681,65 691,128 666,218 C647,287 675,355 643,430 C612,506 623,590 590,750" fill="none" stroke="#5aa7c2" stroke-width="28" stroke-linecap="round" opacity=".72"/>
-        <path d="M705,-30 C681,65 691,128 666,218 C647,287 675,355 643,430 C612,506 623,590 590,750" fill="none" stroke="url(#river)" stroke-width="13" stroke-linecap="round"/>
-        <path d="M645,-10 C625,88 634,160 612,236 C590,312 612,390 582,470 C548,560 552,628 520,742" fill="none" stroke="#6b7f6a" stroke-width="2" stroke-dasharray="6 10" opacity=".65"/>
-        <path d="M745,-10 C726,96 733,184 715,268 C698,350 716,424 690,510 C668,580 667,642 650,742" fill="none" stroke="#6b7f6a" stroke-width="2" stroke-dasharray="6 10" opacity=".65"/>
-
-        <text x="78" y="612" class="map-label">丽江古城</text>
-        <text x="280" y="552" class="map-label">桥头镇</text>
-        <text x="384" y="410" class="map-label">28 道拐</text>
-        <text x="520" y="327" class="map-label">Halfway</text>
-        <text x="634" y="282" class="map-label">Tina's</text>
-        <text x="716" y="240" class="map-label">核桃园</text>
-        <text x="492" y="505" class="map-label">上虎跳</text>
-        <text x="750" y="90" class="map-label">香格里拉</text>
-        <text x="694" y="500" class="map-small">金沙江</text>
-        <text x="190" y="168" class="map-small">玉龙雪山方向</text>
-        <text x="42" y="54" class="map-label">虎跳峡高路徒步</text>
-        <text x="42" y="78" class="map-small">本图为离线示意图，不依赖在线地图服务</text>
-
-        <path id="route1" class="day-route day1" d="M120 640 L300 540 L340 510 L410 440 L500 385 L590 345"/>
-        <path id="route2" class="day-route day2" d="M590 345 L650 300 L692 340 L710 320 L750 260"/>
-        <path id="route3" class="day-route day3" d="M750 260 L515 470 L790 80"/>
-        <g id="markerLayer"></g>
+        <path d="M0,710 C120,590 180,560 300,492 C420,424 470,304 610,230 C720,172 770,112 900,70 L900,720 Z" fill="#c9dcbc"/>
+        <path d="M705,-30 C681,65 691,128 666,218 C647,287 675,355 643,430 C612,506 623,590 590,750" fill="none" stroke="#327f9d" stroke-width="18" stroke-linecap="round"/>
+        <path d="M120 640 L300 540 L340 510 L410 440 L500 385 L590 345" fill="none" stroke="#e63946" stroke-width="7" stroke-linecap="round"/>
+        <path d="M590 345 L650 300 L692 340 L710 320 L750 260" fill="none" stroke="#457b9d" stroke-width="7" stroke-linecap="round"/>
+        <path d="M750 260 L515 470 L790 80" fill="none" stroke="#2a9d8f" stroke-width="7" stroke-linecap="round" stroke-dasharray="12 12"/>
       </svg>
+      <div class="map-shade"></div>
+      <div class="map-title">
+        <h2>3D 虎跳峡高路地图</h2>
+        <p>山脊、金沙江、住宿点、峡谷下撤线与返程方向</p>
+      </div>
+      <div class="map-panel">
+        <strong>路线信息层</strong>
+        <div class="metric-grid">
+          <div class="metric"><b>26km+</b><span>高路徒步与中虎跳下撤</span></div>
+          <div class="metric"><b>~800m</b><span>Day 1 主要爬升</span></div>
+          <div class="metric"><b>3 晚点</b><span>Halfway / 核桃园 / 香格里拉</span></div>
+          <div class="metric"><b>2h</b><span>虎跳峡至香格里拉车程</span></div>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><i class="legend-line legend-day1"></i>Day 1</span>
+          <span class="legend-item"><i class="legend-line legend-day2"></i>Day 2</span>
+          <span class="legend-item"><i class="legend-line legend-day3"></i>Day 3</span>
+        </div>
+      </div>
       <div id="mapPopup" class="map-popup" hidden></div>
-      <div class="map-note">离线示意图 · 不加载外部地图瓦片</div>
+      <div class="map-help">拖拽旋转 · 滚轮缩放 · 点击编号查看详情</div>
     </div>
   </div>
 
-  <script>
-    // ---- 数据定义 ----
-    const dayColors = { 1: '#e63946', 2: '#457b9d', 3: '#2a9d8f' };
+  <script type="module">
+    import * as THREE from './assets/three/three.module.min.js';
 
+    const dayColors = { 1: '#e63946', 2: '#457b9d', 3: '#2a9d8f' };
     const waypoints = [
-      // Day 1
-      { day: 1, name: '丽江古城', desc: 'Day 1 出发点 — 建议早上 7:00 出发', x: 120, y: 640 },
-      { day: 1, name: '桥头镇', desc: '虎跳峡镇入口，购门票（¥45），换乘当地车到纳西雅阁', x: 300, y: 540 },
-      { day: 1, name: '纳西雅阁', desc: '徒步真正的起点，可在此早餐补给', x: 340, y: 510 },
-      { day: 1, name: '28 道拐', desc: '全程最陡！连续 28 个急弯爬升，海拔约 2,670m', x: 410, y: 440 },
-      { day: 1, name: '茶马客栈', desc: 'Day 1 午餐点，俯瞰峡谷绝壁', x: 500, y: 385 },
-      { day: 1, name: 'Halfway 中途客栈', desc: 'Day 1 住宿 —「爽死你阳台」面朝玉龙雪山', x: 590, y: 345 },
-      // Day 2
-      { day: 2, name: '中峡客栈 Tina\'s', desc: 'Day 2 中继站，可寄存行李，由此下中虎跳', x: 650, y: 300 },
-      { day: 2, name: '中虎跳', desc: '下至谷底！金沙江最窄处，虎跳石、一线天、天梯', x: 692, y: 340 },
-      { day: 2, name: '天梯', desc: '168 级近乎垂直钢梯 — 考验胆量！', x: 710, y: 320 },
-      { day: 2, name: '核桃园', desc: 'Day 2 住宿 — 宁静村落，山货晚餐', x: 750, y: 260 },
-      // Day 3
-      { day: 3, name: '上虎跳观景台', desc: '经典视角 — 金沙江最窄处仅约 30m，传说老虎一跃而过', x: 515, y: 470 },
-      { day: 3, name: '香格里拉', desc: '独克宗古城 → 世界最大转经筒 → 藏式牦牛火锅', x: 790, y: 80 },
+      { day: 1, name: '丽江古城', desc: 'Day 1 出发点，建议早上 7:00 出发。', x: 120, y: 640, elev: 2400, tags: ['出发', '补给'] },
+      { day: 1, name: '桥头镇', desc: '虎跳峡镇入口，购门票并换乘当地车到纳西雅阁。', x: 300, y: 540, elev: 1850, tags: ['门票', '换乘'] },
+      { day: 1, name: '纳西雅阁', desc: '徒步真正的起点，可在此早餐补给。', x: 340, y: 510, elev: 2050, tags: ['起点', '早餐'] },
+      { day: 1, name: '28 道拐', desc: '全程最陡路段，连续急弯爬升至约 2,670m。', x: 410, y: 440, elev: 2670, tags: ['陡坡', '高点'] },
+      { day: 1, name: '茶马客栈', desc: 'Day 1 午餐点，俯瞰峡谷绝壁。', x: 500, y: 385, elev: 2500, tags: ['午餐', '观景'] },
+      { day: 1, name: 'Halfway 中途客栈', desc: 'Day 1 住宿，“爽死你阳台”面朝玉龙雪山。', x: 590, y: 345, elev: 2450, tags: ['住宿', '日落'] },
+      { day: 2, name: "中峡客栈 Tina's", desc: 'Day 2 中继站，可寄存行李，由此下中虎跳。', x: 650, y: 300, elev: 2100, tags: ['中继', '寄存'] },
+      { day: 2, name: '中虎跳', desc: '下至谷底，金沙江最窄处，虎跳石、一线天、天梯。', x: 692, y: 340, elev: 1650, tags: ['峡谷底', '虎跳石'] },
+      { day: 2, name: '天梯', desc: '168 级近乎垂直钢梯，返回公路前的挑战点。', x: 710, y: 320, elev: 1840, tags: ['天梯', '攀爬'] },
+      { day: 2, name: '核桃园', desc: 'Day 2 住宿点，村落安静，适合山货晚餐。', x: 750, y: 260, elev: 1900, tags: ['住宿', '村落'] },
+      { day: 3, name: '上虎跳观景台', desc: '经典视角，金沙江最窄处约 30m。', x: 515, y: 470, elev: 1800, tags: ['观景台', '短停'] },
+      { day: 3, name: '香格里拉', desc: '独克宗古城、世界最大转经筒、藏式牦牛火锅。', x: 790, y: 80, elev: 3160, tags: ['终点', '返程'] },
+    ];
+    const routes = [
+      { day: 1, points: [0, 1, 2, 3, 4, 5] },
+      { day: 2, points: [5, 6, 7, 8, 9] },
+      { day: 3, points: [9, 10, 11] },
     ];
 
-    function renderMarkers() {
-      const layer = document.getElementById('markerLayer');
-      waypoints.forEach((wp, i) => {
-        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        marker.setAttribute('class', `marker day${wp.day}`);
-        marker.setAttribute('data-index', i);
-        marker.setAttribute('tabindex', '0');
-        marker.setAttribute('role', 'button');
-        marker.setAttribute('aria-label', `${i + 1}. ${wp.name}`);
-        marker.setAttribute('transform', `translate(${wp.x} ${wp.y})`);
-        marker.innerHTML = `
-          <path class="marker-pin" d="M0,-31 C-16,-31 -28,-19 -28,-4 C-28,17 0,35 0,35 C0,35 28,17 28,-4 C28,-19 16,-31 0,-31 Z" fill="${dayColors[wp.day]}"/>
-          <circle cx="0" cy="-5" r="12" fill="rgba(255,255,255,.18)"/>
-          <text x="0" y="0" text-anchor="middle">${i + 1}</text>
-        `;
-        marker.addEventListener('click', () => openPoint(i));
-        marker.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            openPoint(i);
-          }
-        });
-        layer.appendChild(marker);
+    const mapEl = document.getElementById('map');
+    const canvas = document.getElementById('terrainCanvas');
+    const popup = document.getElementById('mapPopup');
+    let renderer, scene, camera, markerEls = [];
+    let azimuth = -0.68;
+    let pitch = 0.86;
+    let distance = 16.2;
+    let viewportSized = false;
+    let selectedIndex = 5;
+    let dragging = false;
+    let lastPointer = { x: 0, y: 0 };
+
+    function worldFromMap(x, y) {
+      return {
+        x: (x / 900 - 0.5) * 14.2,
+        z: (y / 720 - 0.5) * 10.6,
+      };
+    }
+
+    function terrainHeight(x, z) {
+      const riverX = 3.35 + Math.sin(z * .95) * .34;
+      const canyon = Math.exp(-Math.pow(x - riverX, 2) / 1.1) * 2.2;
+      const ridgeWest = Math.exp(-Math.pow(x + 2.4, 2) / 9) * 1.2;
+      const ridgeEast = Math.exp(-Math.pow(x - 5.8, 2) / 6) * 1.65;
+      return 0.35 + ridgeWest + ridgeEast + Math.sin(x * .9 + z * .35) * .18 - canyon;
+    }
+
+    function point3(wp, lift = .12) {
+      const p = worldFromMap(wp.x, wp.y);
+      return new THREE.Vector3(p.x, terrainHeight(p.x, p.z) + lift, p.z);
+    }
+
+    function createTerrain() {
+      const geometry = new THREE.PlaneGeometry(16, 12, 96, 72);
+      geometry.rotateX(-Math.PI / 2);
+      const position = geometry.attributes.position;
+      const colors = [];
+      const color = new THREE.Color();
+      for (let i = 0; i < position.count; i++) {
+        const x = position.getX(i);
+        const z = position.getZ(i);
+        const h = terrainHeight(x, z);
+        position.setY(i, h);
+        color.setHSL(0.23, 0.24, 0.34 + Math.max(-.45, Math.min(.45, h)) * .16);
+        colors.push(color.r, color.g, color.b);
+      }
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      geometry.computeVertexNormals();
+      const material = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+        roughness: .86,
+        metalness: .02,
+      });
+      scene.add(new THREE.Mesh(geometry, material));
+    }
+
+    function addTube(points, color, radius, dashed = false) {
+      const curve = new THREE.CatmullRomCurve3(points);
+      const geometry = new THREE.TubeGeometry(curve, 96, radius, 10, false);
+      const material = new THREE.MeshStandardMaterial({
+        color,
+        roughness: .42,
+        metalness: .08,
+        transparent: dashed,
+        opacity: dashed ? .72 : 1,
+      });
+      scene.add(new THREE.Mesh(geometry, material));
+    }
+
+    function createMapObjects() {
+      createTerrain();
+      const riverPoints = [];
+      for (let i = 0; i <= 40; i++) {
+        const z = -6 + i * .3;
+        const x = 3.35 + Math.sin(z * .95) * .34;
+        riverPoints.push(new THREE.Vector3(x, terrainHeight(x, z) + .05, z));
+      }
+      addTube(riverPoints, '#267f9f', .12, false);
+
+      routes.forEach(route => {
+        const points = route.points.map(index => point3(waypoints[index], .18));
+        addTube(points, dayColors[route.day], route.day === 3 ? .055 : .07, route.day === 3);
+      });
+
+      waypoints.forEach((wp, index) => {
+        const pos = point3(wp, .32);
+        const marker = new THREE.Mesh(
+          new THREE.SphereGeometry(.14, 20, 12),
+          new THREE.MeshStandardMaterial({ color: dayColors[wp.day], roughness: .28 })
+        );
+        marker.position.copy(pos);
+        scene.add(marker);
+
+        const pole = new THREE.Mesh(
+          new THREE.CylinderGeometry(.018, .018, .42, 8),
+          new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: .5 })
+        );
+        pole.position.set(pos.x, pos.y - .25, pos.z);
+        scene.add(pole);
+
+        const button = document.createElement('button');
+        button.className = 'map-marker';
+        button.style.setProperty('--pin', dayColors[wp.day]);
+        button.innerHTML = `<span>${index + 1}</span>`;
+        button.type = 'button';
+        button.setAttribute('aria-label', `${index + 1}. ${wp.name}`);
+        button.addEventListener('click', () => openPoint(index));
+        mapEl.appendChild(button);
+        markerEls.push({ el: button, point: pos, day: wp.day });
       });
     }
 
-    function openPoint(index) {
-      const wp = waypoints[index];
-      const popup = document.getElementById('mapPopup');
-      const mapEl = document.getElementById('map');
-      popup.innerHTML = `<div class="map-popup-title">${wp.name}</div><div class="map-popup-day">Day ${wp.day}</div><div>${wp.desc}</div>`;
-      popup.hidden = false;
-      popup.style.left = `${(wp.x / 900) * 100}%`;
-      popup.style.top = `${(wp.y / 720) * 100}%`;
-      popup.style.maxWidth = `${Math.min(290, mapEl.clientWidth - 32)}px`;
-      document.querySelectorAll('.marker').forEach(marker => marker.classList.remove('active'));
-      document.querySelector(`.marker[data-index="${index}"]`)?.classList.add('active');
+    function updateCamera() {
+      const y = Math.sin(pitch) * distance;
+      const flat = Math.cos(pitch) * distance;
+      camera.position.set(Math.sin(azimuth) * flat, y, Math.cos(azimuth) * flat);
+      camera.lookAt(0, .35, 0);
     }
 
-    renderMarkers();
-    openPoint(5);
+    function updateOverlay() {
+      const rect = mapEl.getBoundingClientRect();
+      const vector = new THREE.Vector3();
+      markerEls.forEach((marker, index) => {
+        vector.copy(marker.point).project(camera);
+        const visible = vector.z > -1 && vector.z < 1;
+        marker.el.style.display = visible ? '' : 'none';
+        marker.el.style.left = `${(vector.x * .5 + .5) * rect.width}px`;
+        marker.el.style.top = `${(-vector.y * .5 + .5) * rect.height}px`;
+        marker.el.classList.toggle('active', index === selectedIndex);
+      });
+      positionPopup();
+    }
 
-    // ---- 按天飞行 ----
+    function positionPopup() {
+      const marker = markerEls[selectedIndex];
+      if (!marker) return;
+      const rawLeft = Number.parseFloat(marker.el.style.left) || 0;
+      const popupWidth = Math.min(310, mapEl.clientWidth - 32);
+      const halfWidth = Math.max(115, popupWidth / 2);
+      const safeLeft = Math.max(16 + halfWidth, Math.min(rawLeft, mapEl.clientWidth - 16 - halfWidth));
+      popup.style.left = `${safeLeft}px`;
+      popup.style.top = marker.el.style.top;
+      popup.style.maxWidth = `${popupWidth}px`;
+    }
+
+    function openPoint(index) {
+      selectedIndex = index;
+      const wp = waypoints[index];
+      popup.hidden = false;
+      popup.innerHTML = `
+        <div class="popup-title">${wp.name}</div>
+        <div class="popup-day">Day ${wp.day} · 海拔约 ${wp.elev}m</div>
+        <div>${wp.desc}</div>
+        <div class="popup-tags">${wp.tags.map(tag => `<span>${tag}</span>`).join('')}</div>
+      `;
+      document.querySelectorAll('.day-card').forEach(card => card.classList.toggle('active', card.classList.contains(`day${wp.day}`)));
+      markerEls.forEach((marker) => marker.el.classList.toggle('dimmed', marker.day !== wp.day));
+      updateOverlay();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      azimuth += .0011;
+      updateCamera();
+      renderer.render(scene, camera);
+      updateOverlay();
+    }
+
+    function resize() {
+      if (!renderer || !camera) return;
+      const width = mapEl.clientWidth;
+      const height = mapEl.clientHeight;
+      if (!viewportSized) {
+        if (width < 520) {
+          distance = 18.4;
+          pitch = 1.02;
+          azimuth = -0.48;
+        }
+        viewportSized = true;
+      }
+      renderer.setSize(width, height, false);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      updateOverlay();
+    }
+
+    function init3D() {
+      try {
+        renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        scene = new THREE.Scene();
+        scene.fog = new THREE.Fog('#d9e7d0', 12, 25);
+        camera = new THREE.PerspectiveCamera(46, 1, .1, 60);
+        scene.add(new THREE.HemisphereLight('#f7ffe8', '#5a735f', 2.1));
+        const sun = new THREE.DirectionalLight('#fff3d1', 2.4);
+        sun.position.set(-5, 9, 4);
+        scene.add(sun);
+        createMapObjects();
+        resize();
+        openPoint(5);
+        animate();
+      } catch (error) {
+        mapEl.classList.add('fallback');
+        openPoint(5);
+      }
+    }
+
+    canvas.addEventListener('pointerdown', (event) => {
+      dragging = true;
+      lastPointer = { x: event.clientX, y: event.clientY };
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointermove', (event) => {
+      if (!dragging) return;
+      const dx = event.clientX - lastPointer.x;
+      const dy = event.clientY - lastPointer.y;
+      azimuth -= dx * .006;
+      pitch = Math.max(.45, Math.min(1.12, pitch + dy * .004));
+      lastPointer = { x: event.clientX, y: event.clientY };
+    });
+    canvas.addEventListener('pointerup', () => { dragging = false; });
+    canvas.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      distance = Math.max(9.5, Math.min(19, distance + event.deltaY * .01));
+    }, { passive: false });
+    window.addEventListener('resize', resize);
+
     const dayFirstPoint = { 1: 0, 2: 6, 3: 10 };
     window.flyToDay = function(day) {
+      azimuth = day === 1 ? -0.78 : day === 2 ? -0.38 : -0.08;
+      distance = day === 3 ? 15.8 : 13.8;
       openPoint(dayFirstPoint[day]);
-      document.querySelectorAll('.day-card').forEach(c => c.style.opacity = '0.5');
-      document.querySelector(`.day-card.day${day}`).style.opacity = '1';
-      setTimeout(() => document.querySelectorAll('.day-card').forEach(c => c.style.opacity = ''), 2500);
     };
+
+    init3D();
   </script>
 </body>
 </html>
