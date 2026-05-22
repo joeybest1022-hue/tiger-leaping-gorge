@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>虎跳峡三天徒步方案</title>
-  <link href="assets/maplibre/maplibre-gl.css" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
@@ -59,33 +58,55 @@
     }
     .share-box a { color: #7ec8e3; word-break: break-all; }
 
-    /* ---- 地图 ---- */
-    #map { flex: 1; position: relative; }
-    .map-status {
-      position: absolute; left: 50%; top: 50%; z-index: 2;
-      transform: translate(-50%, -50%);
-      background: rgba(26, 26, 46, 0.9); color: #fff;
-      border: 1px solid rgba(255, 209, 102, 0.55);
-      border-radius: 8px; padding: 12px 14px;
-      font-size: 13px; line-height: 1.6; text-align: center;
-      max-width: min(320px, calc(100% - 32px));
-      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    /* ---- 本地 SVG 行程地图 ---- */
+    #map {
+      flex: 1; position: relative; overflow: hidden;
+      background: #e8efe5;
     }
-
-    /* 自定义 popup */
-    .maplibregl-popup-content {
-      background: #1a1a2e; color: #eee; border-radius: 8px; padding: 14px;
-      font-family: inherit; font-size: 13px; line-height: 1.6;
-      border: 1px solid #333;
+    .route-map {
+      width: 100%; height: 100%; display: block;
+      background: linear-gradient(135deg, #dfead9 0%, #f3efe0 52%, #d7e5d6 100%);
     }
-    .maplibregl-popup-tip { border-top-color: #1a1a2e !important; }
-    .popup-title { font-weight: bold; font-size: 14px; margin-bottom: 4px; }
-    .popup-day { font-size: 11px; color: #aaa; }
+    .map-label { fill: #293241; font-size: 13px; font-weight: 700; paint-order: stroke; stroke: rgba(255,255,255,.9); stroke-width: 4px; stroke-linejoin: round; }
+    .map-small { fill: #59636f; font-size: 11px; font-weight: 600; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 3px; }
+    .day-route { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 7; filter: drop-shadow(0 2px 2px rgba(0,0,0,.22)); }
+    .day-route.day1 { stroke: #e63946; }
+    .day-route.day2 { stroke: #457b9d; }
+    .day-route.day3 { stroke: #2a9d8f; stroke-dasharray: 12 12; }
+    .marker { cursor: pointer; outline: none; }
+    .marker-pin { stroke: #fff; stroke-width: 3; filter: drop-shadow(0 3px 5px rgba(0,0,0,.28)); transition: transform .18s ease; }
+    .marker text { fill: #fff; font-size: 13px; font-weight: 800; pointer-events: none; }
+    .marker:hover .marker-pin,
+    .marker.active .marker-pin { transform: translateY(-4px); }
+    .map-note {
+      position: absolute; right: 18px; bottom: 16px;
+      background: rgba(255,255,255,.88); color: #3b4652;
+      border: 1px solid rgba(26,26,46,.12);
+      border-radius: 8px; padding: 8px 10px;
+      font-size: 12px; line-height: 1.45;
+      box-shadow: 0 8px 22px rgba(0,0,0,.12);
+    }
+    .map-popup {
+      position: absolute; z-index: 3; min-width: 220px; max-width: 290px;
+      transform: translate(-50%, calc(-100% - 22px));
+      background: #1a1a2e; color: #eee; border: 1px solid #333;
+      border-radius: 8px; padding: 14px 16px;
+      font-size: 13px; line-height: 1.6;
+      box-shadow: 0 16px 40px rgba(0,0,0,.28);
+    }
+    .map-popup::after {
+      content: ''; position: absolute; left: 50%; bottom: -9px;
+      width: 16px; height: 16px; transform: translateX(-50%) rotate(45deg);
+      background: #1a1a2e; border-right: 1px solid #333; border-bottom: 1px solid #333;
+    }
+    .map-popup-title { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
+    .map-popup-day { font-size: 11px; color: #aaa; margin-bottom: 5px; }
 
     @media (max-width: 768px) {
       #container { flex-direction: column; }
       #sidebar { width: 100%; min-width: unset; max-height: 45vh; }
       #map { min-height: 55vh; }
+      .map-note { left: 12px; right: 12px; bottom: 12px; }
     }
   </style>
 </head>
@@ -164,204 +185,123 @@
       </div>
     </div>
 
-    <!-- ===== 地图 ===== -->
-    <div id="map"></div>
+    <!-- ===== 本地 SVG 行程地图 ===== -->
+    <div id="map">
+      <svg class="route-map" viewBox="0 0 900 720" role="img" aria-labelledby="mapTitle mapDesc" preserveAspectRatio="xMidYMid slice">
+        <title id="mapTitle">虎跳峡三天高路徒步路线示意图</title>
+        <desc id="mapDesc">从丽江古城，经桥头镇、纳西雅阁、28 道拐、茶马客栈、Halfway、中峡客栈、中虎跳、核桃园、上虎跳观景台，到香格里拉。</desc>
+        <defs>
+          <linearGradient id="ridge" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#b7cfae"/>
+            <stop offset="55%" stop-color="#e7dcc2"/>
+            <stop offset="100%" stop-color="#9ebd9d"/>
+          </linearGradient>
+          <linearGradient id="river" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#8cc7dc"/>
+            <stop offset="100%" stop-color="#327f9d"/>
+          </linearGradient>
+        </defs>
+
+        <rect width="900" height="720" fill="#e8efe5"/>
+        <path d="M0,120 C160,62 255,140 390,95 C500,58 650,36 900,84 L900,0 L0,0 Z" fill="#dcead4"/>
+        <path d="M0,710 C120,590 180,560 300,492 C420,424 470,304 610,230 C720,172 770,112 900,70 L900,720 Z" fill="url(#ridge)" opacity=".9"/>
+        <path d="M0,445 C145,365 260,386 382,318 C500,253 552,156 695,105 C770,78 829,67 900,46 L900,720 L0,720 Z" fill="#d3dfc7" opacity=".68"/>
+        <path d="M705,-30 C681,65 691,128 666,218 C647,287 675,355 643,430 C612,506 623,590 590,750" fill="none" stroke="#5aa7c2" stroke-width="28" stroke-linecap="round" opacity=".72"/>
+        <path d="M705,-30 C681,65 691,128 666,218 C647,287 675,355 643,430 C612,506 623,590 590,750" fill="none" stroke="url(#river)" stroke-width="13" stroke-linecap="round"/>
+        <path d="M645,-10 C625,88 634,160 612,236 C590,312 612,390 582,470 C548,560 552,628 520,742" fill="none" stroke="#6b7f6a" stroke-width="2" stroke-dasharray="6 10" opacity=".65"/>
+        <path d="M745,-10 C726,96 733,184 715,268 C698,350 716,424 690,510 C668,580 667,642 650,742" fill="none" stroke="#6b7f6a" stroke-width="2" stroke-dasharray="6 10" opacity=".65"/>
+
+        <text x="78" y="612" class="map-label">丽江古城</text>
+        <text x="280" y="552" class="map-label">桥头镇</text>
+        <text x="384" y="410" class="map-label">28 道拐</text>
+        <text x="520" y="327" class="map-label">Halfway</text>
+        <text x="634" y="282" class="map-label">Tina's</text>
+        <text x="716" y="240" class="map-label">核桃园</text>
+        <text x="492" y="505" class="map-label">上虎跳</text>
+        <text x="750" y="90" class="map-label">香格里拉</text>
+        <text x="694" y="500" class="map-small">金沙江</text>
+        <text x="190" y="168" class="map-small">玉龙雪山方向</text>
+        <text x="42" y="54" class="map-label">虎跳峡高路徒步</text>
+        <text x="42" y="78" class="map-small">本图为离线示意图，不依赖在线地图服务</text>
+
+        <path id="route1" class="day-route day1" d="M120 640 L300 540 L340 510 L410 440 L500 385 L590 345"/>
+        <path id="route2" class="day-route day2" d="M590 345 L650 300 L692 340 L710 320 L750 260"/>
+        <path id="route3" class="day-route day3" d="M750 260 L515 470 L790 80"/>
+        <g id="markerLayer"></g>
+      </svg>
+      <div id="mapPopup" class="map-popup" hidden></div>
+      <div class="map-note">离线示意图 · 不加载外部地图瓦片</div>
+    </div>
   </div>
 
-  <script src="assets/maplibre/maplibre-gl.js"></script>
   <script>
-    const mapStatus = document.createElement('div');
-    mapStatus.className = 'map-status';
-    mapStatus.textContent = '地图加载中...';
-    document.getElementById('map').appendChild(mapStatus);
-
-    // ---- 地图初始化 ----
-    let map;
-    const mapBaseStyle = {
-      version: 8,
-      sources: {},
-      layers: [{
-        id: 'background',
-        type: 'background',
-        paint: { 'background-color': '#e8f0e6' },
-      }],
-    };
-    const baseTileSources = {
-      amap: {
-        type: 'raster',
-        tiles: [
-          'https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
-          'https://webrd02.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
-          'https://webrd03.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
-          'https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',
-        ],
-        tileSize: 256,
-        attribution: '&copy; 高德地图',
-      },
-      carto: {
-        type: 'raster',
-        tiles: [
-          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-          'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-          'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-        ],
-        tileSize: 256,
-        attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-      },
-    };
-    const rasterMapStyle = {
-      version: 8,
-      sources: {
-        amap: baseTileSources.amap,
-      },
-      layers: [
-        { id: 'background', type: 'background', paint: { 'background-color': '#e8f0e6' } },
-        { id: 'amap', type: 'raster', source: 'amap' },
-      ],
-    };
-
     // ---- 数据定义 ----
     const dayColors = { 1: '#e63946', 2: '#457b9d', 3: '#2a9d8f' };
 
     const waypoints = [
       // Day 1
-      { day: 1, name: '丽江古城',     desc: 'Day 1 出发点 — 建议早上 7:00 出发',               lng: 100.235, lat: 26.870 },
-      { day: 1, name: '桥头镇',       desc: '虎跳峡镇入口，购门票（¥45），换乘当地车到纳西雅阁',  lng: 100.055, lat: 27.180 },
-      { day: 1, name: '纳西雅阁',     desc: '徒步真正的起点，可在此早餐补给',                    lng: 100.078, lat: 27.190 },
-      { day: 1, name: '28 道拐',     desc: '🚨 全程最陡！连续 28 个急弯爬升，海拔 → 2,670m',     lng: 100.095, lat: 27.208 },
-      { day: 1, name: '茶马客栈',     desc: 'Day 1 午餐点，俯瞰峡谷绝壁',                       lng: 100.112, lat: 27.215 },
-      { day: 1, name: 'Halfway 中途客栈', desc: '🏨 Day 1 住宿 —「爽死你阳台」面朝玉龙雪山',  lng: 100.122, lat: 27.222 },
+      { day: 1, name: '丽江古城', desc: 'Day 1 出发点 — 建议早上 7:00 出发', x: 120, y: 640 },
+      { day: 1, name: '桥头镇', desc: '虎跳峡镇入口，购门票（¥45），换乘当地车到纳西雅阁', x: 300, y: 540 },
+      { day: 1, name: '纳西雅阁', desc: '徒步真正的起点，可在此早餐补给', x: 340, y: 510 },
+      { day: 1, name: '28 道拐', desc: '全程最陡！连续 28 个急弯爬升，海拔约 2,670m', x: 410, y: 440 },
+      { day: 1, name: '茶马客栈', desc: 'Day 1 午餐点，俯瞰峡谷绝壁', x: 500, y: 385 },
+      { day: 1, name: 'Halfway 中途客栈', desc: 'Day 1 住宿 —「爽死你阳台」面朝玉龙雪山', x: 590, y: 345 },
       // Day 2
-      { day: 2, name: '中峡客栈 Tina\'s', desc: 'Day 2 中继站，可寄存行李，由此下中虎跳',        lng: 100.135, lat: 27.240 },
-      { day: 2, name: '中虎跳',       desc: '下至谷底！金沙江最窄处，虎跳石、一线天、天梯',      lng: 100.142, lat: 27.248 },
-      { day: 2, name: '天梯',         desc: '168 级近乎垂直钢梯 — 考验胆量！💪',                 lng: 100.140, lat: 27.246 },
-      { day: 2, name: '核桃园',       desc: '🏨 Day 2 住宿 — 宁静村落，山货晚餐',               lng: 100.155, lat: 27.268 },
+      { day: 2, name: '中峡客栈 Tina\'s', desc: 'Day 2 中继站，可寄存行李，由此下中虎跳', x: 650, y: 300 },
+      { day: 2, name: '中虎跳', desc: '下至谷底！金沙江最窄处，虎跳石、一线天、天梯', x: 692, y: 340 },
+      { day: 2, name: '天梯', desc: '168 级近乎垂直钢梯 — 考验胆量！', x: 710, y: 320 },
+      { day: 2, name: '核桃园', desc: 'Day 2 住宿 — 宁静村落，山货晚餐', x: 750, y: 260 },
       // Day 3
-      { day: 3, name: '上虎跳观景台', desc: '经典视角 — 金沙江最窄处仅 ~30m，传说老虎一跃而过',   lng: 100.118, lat: 27.200 },
-      { day: 3, name: '香格里拉',     desc: '独克宗古城 → 世界最大转经筒 → 藏式牦牛火锅 🍲',       lng: 99.708, lat: 27.825 },
+      { day: 3, name: '上虎跳观景台', desc: '经典视角 — 金沙江最窄处仅约 30m，传说老虎一跃而过', x: 515, y: 470 },
+      { day: 3, name: '香格里拉', desc: '独克宗古城 → 世界最大转经筒 → 藏式牦牛火锅', x: 790, y: 80 },
     ];
 
-    // 路线（折线）
-    const routeDay1 = [
-      [100.235, 26.870], [100.200, 27.130], [100.055, 27.180],
-      [100.078, 27.190], [100.095, 27.208], [100.112, 27.215], [100.122, 27.222],
-    ];
-    const routeDay2 = [
-      [100.122, 27.222], [100.128, 27.230], [100.135, 27.240],
-      [100.142, 27.248], [100.140, 27.246], [100.155, 27.268],
-    ];
-    const routeDay3 = [
-      [100.155, 27.268], [100.140, 27.220], [100.118, 27.200],
-      [100.150, 27.400], [99.950, 27.600], [99.708, 27.825],
-    ];
-
-    function hideMapStatus() {
-      mapStatus.remove();
-    }
-
-    function drawRouteAndMarkers() {
-      hideMapStatus();
-      // 画路线
-      [
-        { coords: routeDay1, color: dayColors[1], id: 'route-day1' },
-        { coords: routeDay2, color: dayColors[2], id: 'route-day2' },
-        { coords: routeDay3, color: dayColors[3], id: 'route-day3' },
-      ].forEach(r => {
-        map.addSource(r.id, { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: r.coords } } });
-        map.addLayer({
-          id: r.id, type: 'line', source: r.id,
-          paint: { 'line-color': r.color, 'line-width': 4, 'line-opacity': 0.8 },
-        });
-      });
-
-      // 画标注点
+    function renderMarkers() {
+      const layer = document.getElementById('markerLayer');
       waypoints.forEach((wp, i) => {
-        const color = dayColors[wp.day];
-        const el = document.createElement('div');
-        el.innerHTML = `<svg width="28" height="36" viewBox="0 0 28 36">
-          <path d="M14 0C6.3 0 0 6.3 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.3 21.7 0 14 0z" fill="${color}"/>
-          <text x="14" y="15" text-anchor="middle" fill="#fff" font-size="11" font-weight="bold">${i+1}</text>
-        </svg>`;
-        el.style.cursor = 'pointer';
-        el.title = wp.name;
-
-        const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([wp.lng, wp.lat])
-          .addTo(map);
-
-        el.addEventListener('click', () => {
-          new maplibregl.Popup({ offset: [0, -36] })
-            .setLngLat([wp.lng, wp.lat])
-            .setHTML(`<div class="popup-title">${wp.name}</div><div class="popup-day">Day ${wp.day}</div><div>${wp.desc}</div>`)
-            .addTo(map);
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        marker.setAttribute('class', `marker day${wp.day}`);
+        marker.setAttribute('data-index', i);
+        marker.setAttribute('tabindex', '0');
+        marker.setAttribute('role', 'button');
+        marker.setAttribute('aria-label', `${i + 1}. ${wp.name}`);
+        marker.setAttribute('transform', `translate(${wp.x} ${wp.y})`);
+        marker.innerHTML = `
+          <path class="marker-pin" d="M0,-31 C-16,-31 -28,-19 -28,-4 C-28,17 0,35 0,35 C0,35 28,17 28,-4 C28,-19 16,-31 0,-31 Z" fill="${dayColors[wp.day]}"/>
+          <circle cx="0" cy="-5" r="12" fill="rgba(255,255,255,.18)"/>
+          <text x="0" y="0" text-anchor="middle">${i + 1}</text>
+        `;
+        marker.addEventListener('click', () => openPoint(i));
+        marker.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openPoint(i);
+          }
         });
+        layer.appendChild(marker);
       });
     }
 
-    function showMapError() {
-      mapStatus.textContent = '底图暂时加载较慢，路线和标记仍可使用。';
-      setTimeout(hideMapStatus, 1800);
+    function openPoint(index) {
+      const wp = waypoints[index];
+      const popup = document.getElementById('mapPopup');
+      const mapEl = document.getElementById('map');
+      popup.innerHTML = `<div class="map-popup-title">${wp.name}</div><div class="map-popup-day">Day ${wp.day}</div><div>${wp.desc}</div>`;
+      popup.hidden = false;
+      popup.style.left = `${(wp.x / 900) * 100}%`;
+      popup.style.top = `${(wp.y / 720) * 100}%`;
+      popup.style.maxWidth = `${Math.min(290, mapEl.clientWidth - 32)}px`;
+      document.querySelectorAll('.marker').forEach(marker => marker.classList.remove('active'));
+      document.querySelector(`.marker[data-index="${index}"]`)?.classList.add('active');
     }
 
-    function addFallbackBaseLayer() {
-      if (!map || map.getSource('carto')) return;
-      map.addSource('carto', baseTileSources.carto);
-      map.addLayer({ id: 'carto', type: 'raster', source: 'carto' }, 'route-day1');
-    }
-
-    function initMap() {
-      if (!window.maplibregl) {
-        showMapError();
-        return;
-      }
-
-      map = new maplibregl.Map({
-        container: 'map',
-        style: new URLSearchParams(location.search).has('plain') ? mapBaseStyle : rasterMapStyle,
-        center: [100.10, 27.22],
-        zoom: 13,
-        maxBounds: [[99.90, 27.10], [100.35, 27.40]],
-      });
-
-      map.addControl(new maplibregl.NavigationControl(), 'top-right');
-      map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
-
-      let drewContent = false;
-      const onLoad = () => {
-        if (drewContent) return;
-        drewContent = true;
-        drawRouteAndMarkers();
-      };
-
-      map.once('load', onLoad);
-      map.on('error', () => {
-        if (drewContent) addFallbackBaseLayer();
-      });
-      setTimeout(() => {
-        if (drewContent) return;
-        mapStatus.textContent = '底图较慢，正在先显示路线...';
-        map.setStyle(mapBaseStyle);
-        map.once('style.load', onLoad);
-        setTimeout(() => {
-          if (!drewContent && map.isStyleLoaded()) onLoad();
-          if (!drewContent) showMapError();
-        }, 1000);
-      }, 2500);
-    }
-
-    initMap();
+    renderMarkers();
+    openPoint(5);
 
     // ---- 按天飞行 ----
-    const dayFlyBounds = {
-      1: { center: [100.10, 27.20], zoom: 13 },
-      2: { center: [100.138, 27.245], zoom: 13.5 },
-      3: { center: [100.14, 27.30], zoom: 11 },
-    };
+    const dayFirstPoint = { 1: 0, 2: 6, 3: 10 };
     window.flyToDay = function(day) {
-      if (!map) return;
-      const t = dayFlyBounds[day];
-      map.flyTo({ center: t.center, zoom: t.zoom, duration: 1800 });
-      // 高亮对应卡片
+      openPoint(dayFirstPoint[day]);
       document.querySelectorAll('.day-card').forEach(c => c.style.opacity = '0.5');
       document.querySelector(`.day-card.day${day}`).style.opacity = '1';
       setTimeout(() => document.querySelectorAll('.day-card').forEach(c => c.style.opacity = ''), 2500);
